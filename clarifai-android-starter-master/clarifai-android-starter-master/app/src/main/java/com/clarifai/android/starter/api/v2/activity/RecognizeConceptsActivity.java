@@ -41,6 +41,8 @@ import java.util.List;
 import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
 
+import com.hankcs.hanlp.dictionary.CoreSynonymDictionary;
+
 public final class RecognizeConceptsActivity extends BaseActivity {
 
   public static final int PICK_IMAGE = 100;
@@ -190,31 +192,78 @@ public final class RecognizeConceptsActivity extends BaseActivity {
         title_list.add(key);
       }
 
-      boolean found = false;
-      for (int i = 0; i < results.size() && !found; i++) {
-//        for (int j = 0; j < title_list.size(); j++) {
-//          String str = title_list.get(j).toString();
-        String check = results.get(i).name();
-        if (title_list.contains(check)) {
-          int idx = title_list.indexOf(check);
-
-          array = testJson.getJSONArray(title_list.get(idx).toString());
-          found = true;
-          break;
-
+      //使用hanlp计算语义距离
+      double[] numarray = new double[title_list.size()];
+      for (int i = 0; i < results.size(); i++) {
+        for (int j = 0; j < title_list.size(); j++) {
+          numarray[j] += CoreSynonymDictionary.similarity(results.get(i).name().toString(), title_list.get(j).toString());
         }
-
       }
+      //返回最符合的诗句title下标
+      int[] index = SearchMaxWithIndex(numarray);
+      //通过数组返回诗句
+      poem_list = GetResuleFromJson(index, title_list);
 
-
-      for (int i = 0; i < array.length(); i++) {
-        poem_list.add(array.getString(i));
-      }
+//      boolean found = false;
+//      for (int i = 0; i < results.size() && !found; i++) {
+////        for (int j = 0; j < title_list.size(); j++) {
+////          String str = title_list.get(j).toString();
+//        String check = results.get(i).name();
+//        if (title_list.contains(check)) {
+//          int idx = title_list.indexOf(check);
+//
+//          array = testJson.getJSONArray(title_list.get(idx).toString());
+//          found = true;
+//          break;
+//
+//        }
+//
+//      }
+//
+//
+//      for (int i = 0; i < array.length(); i++) {
+//        poem_list.add(array.getString(i));
+//      }
 
     } catch(Exception e){
       e.printStackTrace();
     }
 
+  }
+
+  private static int[] SearchMaxWithIndex(double[] arr) {
+    int[] pos = new int[arr.length];
+    int position = 0;
+    int j = 1;
+    for (int i = 1; i < arr.length; i++) {
+      if (arr[i] > arr[position]) {
+        position = i;
+        j = 1;
+      }
+      else if (arr[i] == arr[position])
+        pos[j++] = i;
+    }
+    pos[0] = position;
+
+    if (j < arr.length) pos[j] = -1;
+    return pos;
+  }
+
+  private ArrayList GetResuleFromJson(int[] pos, List titlelist) {
+    ArrayList resultlist = new ArrayList();
+    try {
+      for (int i = 0; i < pos.length; i++) {
+        if (pos[i] == -1) break;
+        JSONArray jsonArray = new JSONArray();
+        jsonArray = testJson.getJSONArray(titlelist.get(pos[i]).toString());
+        for (int j = 0; j < jsonArray.length(); j++) {
+          resultlist.add(jsonArray.getString(j));
+        }
+      }
+    } catch (Exception e){
+      e.printStackTrace();
+    }
+    return resultlist;
   }
 
 }
